@@ -82,7 +82,7 @@ typedef struct {
  * If the file couldn't be opened or didn't have a proper Elf header, NULL is
  * returned and numBytes is set to zero.
  */
-static void *GetElfData(const char *filename, int *numBytes)
+void *GetElfData(const char *filename, int *numBytes)
 {
    char ELF_IDENTITY[] = { 0x7f, 'E', 'L', 'F', ELFCLASS32, ELFDATA2LSB, EV_CURRENT};
    int fd;
@@ -104,7 +104,7 @@ static void *GetElfData(const char *filename, int *numBytes)
 }
 
 
-static void DisposeElfData(void *data, int size)
+void DisposeElfData(void *data, int size)
 {
    munmap(data, size);
 }
