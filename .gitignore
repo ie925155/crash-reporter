@@ -1,0 +1,6 @@
+*.a
+*.o
+buggy
+namelist
+Makefile.dependencies
+tags
