@@ -12,11 +12,11 @@ CC = gcc
 #  -O0         do not optimize generated code
 #  -std=gnu99  use the Gnu C99 standard language definition
 #  -m32        emit code for IA32 architecture
-CFLAGS = -g -Wall -O0 -std=gnu99 -m32
+CFLAGS = -g -Wall -O0 -std=gnu11 -m64 
 
 # The LDFLAGS variable sets flags for linker
 #  -m32  link with 32-bit libraries
-LDFLAGS =  -m32
+LDFLAGS =  -m64
 
 # In this section, you list the files that are part of the project.
 # If you add/change names of header/source files, here is where you
@@ -58,4 +58,3 @@ Makefile.dependencies:: $(SOURCES) $(HEADERS)
 
 clean:
 	@rm -f $(TARGETS) *.o core Makefile.dependencies sanity_buggy*
-
