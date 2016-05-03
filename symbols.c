@@ -9,8 +9,11 @@
 #include <fcntl.h>		// open
 #include <sys/mman.h>	        // mmap
 #include <unistd.h>		// lseek
+#include <assert.h>		// lseek
+#include <stdio.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include "symbols.h"
-
 
 /*
  * The <elf.h> header already declares structs for the file header, section
@@ -29,9 +32,10 @@
 typedef struct {
    char	identity[16];		 // ELF specification information
    int	other_ints[6];           // you can ignore these fields
-   int	offset_to_section_header_table; // offset in bytes from start of file to section headers
+   long	offset_to_section_header_table; // offset in bytes from start of file to section headers
    short other_shorts[6];        // you can ignore these fields
    short number_of_section_headers; // count of section headers in table
+   short other_short[1];
 } Elf64_File_Header;
 
 
@@ -43,12 +47,13 @@ typedef struct {
 typedef struct {
    int	name;
    int	type;		         // type of section: SHT_SYMTAB, SHT_STRTAB, SHT_REL, etc.
-   int	flags;
-   int	addr;
-   int	offset;		       // offset in bytes from file begin to where section data starts
-   int	size;		         // number of bytes of data in the section
+   long	flags;
+   long	addr;
+   long	offset;		       // offset in bytes from file begin to where section data starts
+   long	size;		         // number of bytes of data in the section
    int	strtab_index;	   // index into section header table for associated string table section
-   int	other_ints[3];
+   int other_int;
+   long	other_ints[2];
 } Elf64_Section_Header;
 
 
@@ -96,13 +101,62 @@ void *GetElfData(const char *filename, int *numBytes)
 
    // file header is at offset 0 within file, use typecast at this location to
    // access header
-   Elf64_File_Header *hdr = (Elf64_File_Header *)data;
-   if (memcmp(hdr->identity, ELF_IDENTITY, sizeof(ELF_IDENTITY)) != 0)
+   Elf64_Ehdr *hdr = (Elf64_Ehdr *)data;
+   if (memcmp(hdr->e_ident, ELF_IDENTITY, sizeof(ELF_IDENTITY)) != 0)
       return NULL; // bail if start of file doesn't indicate correct 32-bit Elf file header
    *numBytes = file_size;
    return data;
 }
 
+void PrintSymtab(void *elfData)
+{
+  uint8_t *strtab_ptr = NULL;
+  Elf64_Sym *symtab_ptr = NULL;
+  uint32_t num_of_symbols = 0;
+  assert(elfData != NULL);
+  Elf64_Ehdr *hdr = (Elf64_Ehdr *)elfData;
+  Elf64_Shdr *sh_ptr;
+  for(int i = 0 ; i < hdr->e_shnum ; i++)
+  {
+    //printf("type = %d\n", (sh_ptr + i)->sh_type);
+    sh_ptr = (Elf64_Shdr*)((uint8_t*)elfData + hdr->e_shoff) + i;
+
+    if((sh_ptr)->sh_type == SHT_STRTAB)
+    {
+      strtab_ptr = (uint8_t*)elfData + (sh_ptr)->sh_offset;
+      //printf("strtab_ptr = %s\n", strtab_ptr + (sh_ptr)->sh_name);
+      if(memcmp(strtab_ptr + (sh_ptr)->sh_name, ".shstrtab", sizeof(".shstrtab")) == 0)
+        strtab_ptr = NULL;
+    }
+    if((sh_ptr)->sh_type == SHT_SYMTAB)
+    {
+      symtab_ptr = (Elf64_Sym*) ((uint8_t*)elfData + (sh_ptr)->sh_offset);
+      num_of_symbols = (sh_ptr)->sh_size / (sh_ptr)->sh_entsize;
+      //printf("sh_size = %" PRIu64 "\n", (sh_ptr)->sh_size);
+      //printf("sh_entsize = %" PRIu64 "\n", (sh_ptr)->sh_entsize);
+    }
+  }
+  //dissect symtab section
+  Elf64_Sym *symtab_index;
+  for(int i = 0 ; i < num_of_symbols ; i++)
+  {
+    symtab_index = (symtab_ptr + i);
+    if((symtab_ptr + i)->st_name > 0)
+    {
+      //printf("offset = %s \n", strtab_ptr + symtab_index->st_name);
+      uint8_t *symtab_name = strtab_ptr + symtab_index->st_name;
+      uint8_t binding = symtab_index->st_info >> 4;
+      uint8_t type = (symtab_index->st_info & 0x0F);
+      Elf64_Half st_shndx = symtab_index->st_shndx;
+      Elf64_Addr st_value = symtab_index->st_value;
+      Elf64_Xword st_size = symtab_index->st_size;
+      if(st_shndx != SHN_UNDEF && type == STT_FUNC && (binding == STB_GLOBAL
+        || binding == STB_LOCAL))
+        printf("%016lx %016lx %c %s\n", st_value, st_size, (binding == STB_GLOBAL)
+          ? 'T' : 't', symtab_name);
+    }
+  }
+}
 
 void DisposeElfData(void *data, int size)
 {

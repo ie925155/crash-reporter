@@ -7,4 +7,5 @@
  */
 
 void *GetElfData(const char *filename, int *numBytes);
+void PrintSymtab(void *elfData);
 void DisposeElfData(void *data, int size);
