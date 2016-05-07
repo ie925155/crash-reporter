@@ -110,7 +110,10 @@ void *GetElfData(const char *filename, int *numBytes)
    // access header
    Elf64_Ehdr *hdr = (Elf64_Ehdr *)data;
    if (memcmp(hdr->e_ident, ELF_IDENTITY, sizeof(ELF_IDENTITY)) != 0)
+   {
+      printf("The object format is not 64-bit ELF");
       return NULL; // bail if start of file doesn't indicate correct 32-bit Elf file header
+   }
    *numBytes = file_size;
    return data;
 }
@@ -152,6 +155,11 @@ void PrintSymtab(void *elfData)
       //printf("sh_size = %" PRIu64 "\n", (sh_ptr)->sh_size);
       //printf("sh_entsize = %" PRIu64 "\n", (sh_ptr)->sh_entsize);
     }
+  }
+  if(symtab_ptr == NULL)
+  {
+    printf("there was no symbol table and exits\n");
+    return;
   }
   vector_symtab = CVectorCreate(sizeof(SYMBOL_INFO), num_of_symbols, NULL);
   char **keep_ptr = malloc(sizeof(char*)* num_of_symbols);

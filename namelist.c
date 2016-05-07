@@ -9,9 +9,8 @@ int main(int argc, char *argv[])
 	void *data_ptr;
 	if(argc < 2)
 		fprintf(stderr, "You have to type file name\n");
-
 	data_ptr = GetElfData(argv[1], &data_size);
-	assert(data_ptr != NULL);
+	if(data_ptr == NULL) return 0;
 	PrintSymtab(data_ptr);
 	DisposeElfData(data_ptr, data_size);
 	return 0;
