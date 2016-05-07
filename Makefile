@@ -33,7 +33,7 @@ default: $(TARGETS)
 # above, this Makefile file will build all three targets.
 
 namelist : namelist.o symbols.o
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS)  -o $@ $^ $(LDFLAGS) -L/mnt/hgfs/glay_luncy/Dropbox/cs107/crash-reporter/hw7 -lccontainer -static
 
 libreporter.a : reporter.o symbols.o
 	ar rcs $@ $^

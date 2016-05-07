@@ -11,9 +11,11 @@
 #include <unistd.h>		// lseek
 #include <assert.h>		// lseek
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include "symbols.h"
+#include "cvector.h"
 
 /*
  * The <elf.h> header already declares structs for the file header, section
@@ -72,7 +74,12 @@ typedef struct {
    char section_tag;            // will be SHN_UNDEF if symbol is undefined
 } Elf64_Symbol;
 
-
+typedef struct {
+  char **name;
+  Elf64_Addr address;
+  Elf64_Xword size;
+  uint8_t binding;
+} SYMBOL_INFO;
 
 
 /* Function: GetElfData
@@ -108,27 +115,37 @@ void *GetElfData(const char *filename, int *numBytes)
    return data;
 }
 
+int symtab_compare(const void *elemAddr1, const void *elemAddr2)
+{
+  SYMBOL_INFO *symbol_info1 = (SYMBOL_INFO*) elemAddr1;
+  SYMBOL_INFO *symbol_info2 = (SYMBOL_INFO*) elemAddr2;
+  return strcasecmp(*(const char **)symbol_info1->name,
+    *(const char **)symbol_info2->name);
+}
+
 void PrintSymtab(void *elfData)
 {
   uint8_t *strtab_ptr = NULL;
   Elf64_Sym *symtab_ptr = NULL;
   uint32_t num_of_symbols = 0;
   assert(elfData != NULL);
-  Elf64_Ehdr *hdr = (Elf64_Ehdr *)elfData;
+  Elf64_Ehdr *hdr = (Elf64_Ehdr *)elfData;      //point ELF Header
   Elf64_Shdr *sh_ptr;
+  CVector *vector_symtab;
   for(int i = 0 ; i < hdr->e_shnum ; i++)
   {
     //printf("type = %d\n", (sh_ptr + i)->sh_type);
+    //access every section entry
     sh_ptr = (Elf64_Shdr*)((uint8_t*)elfData + hdr->e_shoff) + i;
 
-    if((sh_ptr)->sh_type == SHT_STRTAB)
+    if((sh_ptr)->sh_type == SHT_STRTAB) //find the strtab entry
     {
       strtab_ptr = (uint8_t*)elfData + (sh_ptr)->sh_offset;
       //printf("strtab_ptr = %s\n", strtab_ptr + (sh_ptr)->sh_name);
       if(memcmp(strtab_ptr + (sh_ptr)->sh_name, ".shstrtab", sizeof(".shstrtab")) == 0)
         strtab_ptr = NULL;
     }
-    if((sh_ptr)->sh_type == SHT_SYMTAB)
+    if((sh_ptr)->sh_type == SHT_SYMTAB) //find symtab entry
     {
       symtab_ptr = (Elf64_Sym*) ((uint8_t*)elfData + (sh_ptr)->sh_offset);
       num_of_symbols = (sh_ptr)->sh_size / (sh_ptr)->sh_entsize;
@@ -136,6 +153,9 @@ void PrintSymtab(void *elfData)
       //printf("sh_entsize = %" PRIu64 "\n", (sh_ptr)->sh_entsize);
     }
   }
+  vector_symtab = CVectorCreate(sizeof(SYMBOL_INFO), num_of_symbols, NULL);
+  char **keep_ptr = malloc(sizeof(char*)* num_of_symbols);
+  int index = 0;
   //dissect symtab section
   Elf64_Sym *symtab_index;
   for(int i = 0 ; i < num_of_symbols ; i++)
@@ -143,8 +163,10 @@ void PrintSymtab(void *elfData)
     symtab_index = (symtab_ptr + i);
     if((symtab_ptr + i)->st_name > 0)
     {
+      SYMBOL_INFO symbol_info;
       //printf("offset = %s \n", strtab_ptr + symtab_index->st_name);
-      uint8_t *symtab_name = strtab_ptr + symtab_index->st_name;
+      //const char *symtab_name = (const char*)strtab_ptr + symtab_index->st_name;
+      keep_ptr[index++] = (char*)strtab_ptr + symtab_index->st_name;
       uint8_t binding = symtab_index->st_info >> 4;
       uint8_t type = (symtab_index->st_info & 0x0F);
       Elf64_Half st_shndx = symtab_index->st_shndx;
@@ -152,10 +174,26 @@ void PrintSymtab(void *elfData)
       Elf64_Xword st_size = symtab_index->st_size;
       if(st_shndx != SHN_UNDEF && type == STT_FUNC && (binding == STB_GLOBAL
         || binding == STB_LOCAL))
-        printf("%016lx %016lx %c %s\n", st_value, st_size, (binding == STB_GLOBAL)
-          ? 'T' : 't', symtab_name);
+      {
+        /*printf("%016lx %016lx %c %s\n", st_value, st_size, (binding == STB_GLOBAL)
+          ? 'T' : 't', keep_ptr[index-1]);*/
+        symbol_info.name = &keep_ptr[index-1];
+        symbol_info.binding = binding;
+        symbol_info.address = st_value;
+        symbol_info.size = st_size;
+        CVectorAppend(vector_symtab, &symbol_info);
+      }
     }
   }
+  CVectorSort(vector_symtab, symtab_compare);
+  for(int i = 0 ; i < CVectorCount(vector_symtab) ; i++)
+  {
+      SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) CVectorNth(vector_symtab, i);
+      printf("%016lx %016lx %c %s\n", symbol_info->address, symbol_info->size, (symbol_info->binding == STB_GLOBAL)
+          ? 'T' : 't', *(const char **)symbol_info->name);
+  }
+  free(keep_ptr);
+  CVectorDispose(vector_symtab);
 }
 
 void DisposeElfData(void *data, int size)
