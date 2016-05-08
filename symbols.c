@@ -208,13 +208,28 @@ void PrintSymtab(void *elfData)
       printf("%016lx %016lx %c %s\n", symbol_info->address, symbol_info->size, (symbol_info->binding == STB_GLOBAL)
           ? 'T' : 't', *(const char **)symbol_info->name);
   }
-  free(keep_str_ptr);
+  if(keep_str_ptr != NULL) free(keep_str_ptr);
   CVectorDispose(vector_symtab);
 }
 
 void SearchSymbol(void *elfData, char *address)
 {
-
+  int64_t addr = (int64_t)strtol(address, NULL, 16);
+  //printf("%02lx\n", addr);
+  CVector *vector_symtab = NULL;
+  char **keep_str_ptr = NULL;
+  dissectSymtab(elfData, &vector_symtab, &keep_str_ptr);
+  for(int i = 0 ; i < CVectorCount(vector_symtab) ; i++)
+  {
+      SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) CVectorNth(vector_symtab, i);
+      //printf("%02lx %02lx %02lx\n", addr, symbol_info->address, (symbol_info->address + symbol_info->size));
+      if(addr >= symbol_info->address && addr <= (symbol_info->address + symbol_info->size))
+        printf("address %s matches %s+%02lx\n", address, *(const char **)symbol_info->name, addr-symbol_info->address);
+      /*printf("%016lx %016lx %c %s\n", symbol_info->address, symbol_info->size, (symbol_info->binding == STB_GLOBAL)
+          ? 'T' : 't', *(const char **)symbol_info->name);*/
+  }
+  if(keep_str_ptr != NULL) free(keep_str_ptr);
+  CVectorDispose(vector_symtab);
 }
 
 void DisposeElfData(void *data, int size)
