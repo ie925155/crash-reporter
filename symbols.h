@@ -6,7 +6,5 @@
  * set the header up to work correctly even if included more than once.
  */
 
-void *GetElfData(const char *filename, int *numBytes);
-void PrintSymtab(void *elfData);
-void SearchSymbol(void *elfData, char *address);
-void DisposeElfData(void *data, int size);
+void PrintSymtab(const char *filename);
+void SearchSymbol(const char *filename, const char *address);

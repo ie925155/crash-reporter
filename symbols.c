@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <search.h>
 #include "symbols.h"
 #include "cvector.h"
 
@@ -81,8 +82,10 @@ typedef struct {
   uint8_t binding;
 } SYMBOL_INFO;
 
+static void *GetElfData(const char *filename, int *numBytes);
 static void dissectSymtab(void *elfData, CVector **vector_symtab,
   char ***keep_str_ptr);
+static void DisposeElfData(void *data, int size);
 
 /* Function: GetElfData
  * ---------------------
@@ -96,7 +99,7 @@ static void dissectSymtab(void *elfData, CVector **vector_symtab,
  * If the file couldn't be opened or didn't have a proper Elf header, NULL is
  * returned and numBytes is set to zero.
  */
-void *GetElfData(const char *filename, int *numBytes)
+static void *GetElfData(const char *filename, int *numBytes)
 {
    char ELF_IDENTITY[] = { 0x7f, 'E', 'L', 'F', ELFCLASS64, ELFDATA2LSB, EV_CURRENT};
    int fd;
@@ -196,11 +199,14 @@ static void dissectSymtab(void *elfData, CVector **vector_symtab, char ***keep_s
   }
 }
 
-void PrintSymtab(void *elfData)
+void PrintSymtab(const char *filename)
 {
+	int data_size;
+	void *data_ptr = GetElfData(filename, &data_size);
+  if(data_ptr == NULL) return;
   CVector *vector_symtab = NULL;
   char **keep_str_ptr = NULL;
-  dissectSymtab(elfData, &vector_symtab, &keep_str_ptr);
+  dissectSymtab(data_ptr, &vector_symtab, &keep_str_ptr);
   CVectorSort(vector_symtab, symtab_compare);
   for(int i = 0 ; i < CVectorCount(vector_symtab) ; i++)
   {
@@ -210,29 +216,46 @@ void PrintSymtab(void *elfData)
   }
   if(keep_str_ptr != NULL) free(keep_str_ptr);
   CVectorDispose(vector_symtab);
+	DisposeElfData(data_ptr, data_size);
 }
 
-void SearchSymbol(void *elfData, char *address)
+int search_compare(const void *elemAddr1, const void *elemAddr2)
 {
-  int64_t addr = (int64_t)strtol(address, NULL, 16);
-  //printf("%02lx\n", addr);
+  int64_t addr = (int64_t)strtol(elemAddr1, NULL, 16);
+  SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) elemAddr2;
+  /*printf("%016lx %016lx %c %s\n", symbol_info->address, symbol_info->size,
+  (symbol_info->binding == STB_GLOBAL) ? 'T' : 't', *(const char **)
+    symbol_info->name);*/
+  return (addr >= symbol_info->address && addr <= (symbol_info->address +
+    symbol_info->size)) ? 0 : -1;
+}
+
+void SearchSymbol(const char *filename, const char *address)
+{
+	int data_size;
+	void *data_ptr = GetElfData(filename, &data_size);
+  if(data_ptr == NULL) return;
   CVector *vector_symtab = NULL;
   char **keep_str_ptr = NULL;
-  dissectSymtab(elfData, &vector_symtab, &keep_str_ptr);
-  for(int i = 0 ; i < CVectorCount(vector_symtab) ; i++)
+  dissectSymtab(data_ptr, &vector_symtab, &keep_str_ptr);
+  CVectorSort(vector_symtab, symtab_compare);
+  int position = CVectorSearch(vector_symtab, address, search_compare, 0, 0);
+  int64_t addr = (int64_t)strtol(address, NULL, 16);
+  if(position == -1)
   {
-      SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) CVectorNth(vector_symtab, i);
-      //printf("%02lx %02lx %02lx\n", addr, symbol_info->address, (symbol_info->address + symbol_info->size));
-      if(addr >= symbol_info->address && addr <= (symbol_info->address + symbol_info->size))
-        printf("address %s matches %s+%02lx\n", address, *(const char **)symbol_info->name, addr-symbol_info->address);
-      /*printf("%016lx %016lx %c %s\n", symbol_info->address, symbol_info->size, (symbol_info->binding == STB_GLOBAL)
-          ? 'T' : 't', *(const char **)symbol_info->name);*/
+    printf("Address %02lx not found in any symbol range\n", addr);
+    goto exit;
   }
+  SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) CVectorNth(vector_symtab, position);
+  printf("address %s matches %s+%02lx\n", address, *(const char **)
+    symbol_info->name, addr-symbol_info->address);
+exit:
   if(keep_str_ptr != NULL) free(keep_str_ptr);
   CVectorDispose(vector_symtab);
+	DisposeElfData(data_ptr, data_size);
 }
 
-void DisposeElfData(void *data, int size)
+static void DisposeElfData(void *data, int size)
 {
    munmap(data, size);
 }
