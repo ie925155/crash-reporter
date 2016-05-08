@@ -81,6 +81,8 @@ typedef struct {
   uint8_t binding;
 } SYMBOL_INFO;
 
+static void dissectSymtab(void *elfData, CVector **vector_symtab,
+  char ***keep_str_ptr);
 
 /* Function: GetElfData
  * ---------------------
@@ -126,7 +128,7 @@ int symtab_compare(const void *elemAddr1, const void *elemAddr2)
     *(const char **)symbol_info2->name);
 }
 
-void PrintSymtab(void *elfData)
+static void dissectSymtab(void *elfData, CVector **vector_symtab, char ***keep_str_ptr)
 {
   uint8_t *strtab_ptr = NULL;
   Elf64_Sym *symtab_ptr = NULL;
@@ -134,7 +136,6 @@ void PrintSymtab(void *elfData)
   assert(elfData != NULL);
   Elf64_Ehdr *hdr = (Elf64_Ehdr *)elfData;      //point ELF Header
   Elf64_Shdr *sh_ptr;
-  CVector *vector_symtab;
   for(int i = 0 ; i < hdr->e_shnum ; i++)
   {
     //printf("type = %d\n", (sh_ptr + i)->sh_type);
@@ -161,8 +162,8 @@ void PrintSymtab(void *elfData)
     printf("there was no symbol table and exits\n");
     return;
   }
-  vector_symtab = CVectorCreate(sizeof(SYMBOL_INFO), num_of_symbols, NULL);
-  char **keep_ptr = malloc(sizeof(char*)* num_of_symbols);
+  *vector_symtab = CVectorCreate(sizeof(SYMBOL_INFO), num_of_symbols, NULL);
+  *keep_str_ptr = malloc(sizeof(char*)* num_of_symbols);
   int index = 0;
   //dissect symtab section
   Elf64_Sym *symtab_index;
@@ -174,7 +175,7 @@ void PrintSymtab(void *elfData)
       SYMBOL_INFO symbol_info;
       //printf("offset = %s \n", strtab_ptr + symtab_index->st_name);
       //const char *symtab_name = (const char*)strtab_ptr + symtab_index->st_name;
-      keep_ptr[index++] = (char*)strtab_ptr + symtab_index->st_name;
+      (*keep_str_ptr)[index++] = (char*)strtab_ptr + symtab_index->st_name;
       uint8_t binding = symtab_index->st_info >> 4;
       uint8_t type = (symtab_index->st_info & 0x0F);
       Elf64_Half st_shndx = symtab_index->st_shndx;
@@ -185,14 +186,21 @@ void PrintSymtab(void *elfData)
       {
         /*printf("%016lx %016lx %c %s\n", st_value, st_size, (binding == STB_GLOBAL)
           ? 'T' : 't', keep_ptr[index-1]);*/
-        symbol_info.name = &keep_ptr[index-1];
+        symbol_info.name = &(*keep_str_ptr)[index-1];
         symbol_info.binding = binding;
         symbol_info.address = st_value;
         symbol_info.size = st_size;
-        CVectorAppend(vector_symtab, &symbol_info);
+        CVectorAppend(*vector_symtab, &symbol_info);
       }
     }
   }
+}
+
+void PrintSymtab(void *elfData)
+{
+  CVector *vector_symtab = NULL;
+  char **keep_str_ptr = NULL;
+  dissectSymtab(elfData, &vector_symtab, &keep_str_ptr);
   CVectorSort(vector_symtab, symtab_compare);
   for(int i = 0 ; i < CVectorCount(vector_symtab) ; i++)
   {
@@ -200,13 +208,13 @@ void PrintSymtab(void *elfData)
       printf("%016lx %016lx %c %s\n", symbol_info->address, symbol_info->size, (symbol_info->binding == STB_GLOBAL)
           ? 'T' : 't', *(const char **)symbol_info->name);
   }
-  free(keep_ptr);
+  free(keep_str_ptr);
   CVectorDispose(vector_symtab);
 }
 
 void SearchSymbol(void *elfData, char *address)
 {
-  
+
 }
 
 void DisposeElfData(void *data, int size)
