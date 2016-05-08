@@ -204,6 +204,11 @@ void PrintSymtab(void *elfData)
   CVectorDispose(vector_symtab);
 }
 
+void SearchSymbol(void *elfData, char *address)
+{
+  
+}
+
 void DisposeElfData(void *data, int size)
 {
    munmap(data, size);
