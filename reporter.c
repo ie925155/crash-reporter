@@ -36,6 +36,10 @@ void InitReporter()
     memset(&act, 0, sizeof(act));        // init all fields to zero
     act.sa_flags = SA_SIGINFO;           // ask for 3-parameter form of the handler
     act.sa_sigaction = SignalReceived;   // set SignalReceived as callback function
+    sigaction(SIGABRT, &act, NULL);
+    sigaction(SIGBUS, &act, NULL);
+    sigaction(SIGFPE, &act, NULL);
+    sigaction(SIGILL, &act, NULL);
     sigaction(SIGSEGV, &act, NULL);      // register as handler for segfault signal
     ObjectFileOpen("/proc/self/exe");
 }
