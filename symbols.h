@@ -9,8 +9,10 @@
 #ifndef _symbols_h
 #define _symbols_h
 
-void PrintSymtab(const char *filename);
-void SearchSymbol(const char *filename, const char *address);
+int ObjectFileOpen(const char *filename);
+void PrintSymtab(void);
+void SearchSymbol(const char *address);
+void ObjectFileClose(void);
 
 
 #endif //end of _symbols_h
