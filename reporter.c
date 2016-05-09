@@ -19,13 +19,13 @@ static void SignalReceived(int signum, siginfo_t * siginfo, void *context)
 {
     printf("\nProgram received signal %d (%s)\n", signum, sys_siglist[signum]);
 
-    // These two lines get the value of EIP register at time of crash, i.e.
+    // These two lines get the value of RIP register at time of crash, i.e.
     // address of instruction that faulted
-    const int eip_index = 14;
-    void *eip = (void *)((struct ucontext *)context)->uc_mcontext.gregs[eip_index];
+    const int rip_index = 16;
+    void *rip = (void *)((struct ucontext *)context)->uc_mcontext.gregs[rip_index];
     // this starter code only prints the symbol addr
     // should eventually print [%p] %s (+0x%x) with addr, name, offset arguments
-    printf("Faulting instruction at [%p]\n", eip);
+    printf("Faulting instruction at [%p]\n", rip);
 
     exit(0);  // terminate process
 }
