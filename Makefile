@@ -39,7 +39,7 @@ libreporter.a : reporter.o symbols.o
 	ar rcs $@ $^
 
 buggy : buggy.o libreporter.a
-	$(CC) $(CFLAGS) -o $@ $^ -static
+	$(CC) $(CFLAGS) -o $@ $^ -L/mnt/hgfs/glay_luncy/Dropbox/cs107/crash-reporter/hw7 -lccontainer -static
 
 # In make's default rules, a .o automatically depends on its .c file
 # (so editing the .c will cause recompilation into its .o file).
