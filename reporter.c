@@ -1,4 +1,4 @@
-/* 
+/*
  * File: reporter.c
  * ----------------
  * This file will eventually contain the code to print a symbolic backtrace
@@ -13,6 +13,7 @@
 #include <signal.h> // sigaction
 #include <stdlib.h> // exit
 #include <ucontext.h> // mcontext
+#include "symbols.h"
 
 static void SignalReceived(int signum, siginfo_t * siginfo, void *context)
 {
@@ -36,7 +37,5 @@ void InitReporter()
     act.sa_flags = SA_SIGINFO;           // ask for 3-parameter form of the handler
     act.sa_sigaction = SignalReceived;   // set SignalReceived as callback function
     sigaction(SIGSEGV, &act, NULL);      // register as handler for segfault signal
+    ObjectFileOpen("/proc/self/exe");
 }
-
-
-
