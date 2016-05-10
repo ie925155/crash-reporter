@@ -235,18 +235,20 @@ int search_compare(const void *elemAddr1, const void *elemAddr2)
     symbol_info->size)) ? 0 : -1;
 }
 
-void SearchSymbol(const char *address)
+char * SearchSymbol(const char *address, long long int *offset)
 {
   int position = CVectorSearch(g_vector_symtab, address, search_compare, 0, 0);
   int64_t addr = (int64_t)strtol(address, NULL, 16);
   if(position == -1)
   {
     printf("Address %02lx not found in any symbol range\n", addr);
-    return;
+    return NULL;
   }
   SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) CVectorNth(g_vector_symtab, position);
+  *offset = addr-symbol_info->address;
   printf("address %s matches %s+%02lx\n", address, *(const char **)
     symbol_info->name, addr-symbol_info->address);
+  return *(const char **) symbol_info->name;
 }
 
 static void DisposeElfData(void *data, int size)

@@ -22,10 +22,21 @@ static void SignalReceived(int signum, siginfo_t * siginfo, void *context)
     // These two lines get the value of RIP register at time of crash, i.e.
     // address of instruction that faulted
     const int rip_index = 16;
+    const int rbp_index = 10;
     void *rip = (void *)((struct ucontext *)context)->uc_mcontext.gregs[rip_index];
+    void *rbp = (void *)((struct ucontext *)context)->uc_mcontext.gregs[rbp_index];
     // this starter code only prints the symbol addr
     // should eventually print [%p] %s (+0x%x) with addr, name, offset arguments
-    printf("Faulting instruction at [%p]\n", rip);
+
+    char buf[256] = {0x0};
+    sprintf(buf, "0x%llx", (long long int)rip);
+    long long int offset;
+    char* symbol = (char*)SearchSymbol(buf, &offset);
+    printf("Faulting instruction at [%p] %s (+0x%x)\n", rip, symbol, offset);
+    memset(buf, 0x00, 256);
+    sprintf(buf, "0x%llx", (long long int) *((int64_t*)rbp+1));
+    printf("buf [%s]\n", buf);
+    SearchSymbol(buf, &offset);
 
     exit(0);  // terminate process
 }

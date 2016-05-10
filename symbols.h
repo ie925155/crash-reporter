@@ -11,7 +11,7 @@
 
 int ObjectFileOpen(const char *filename);
 void PrintSymtab(void);
-void SearchSymbol(const char *address);
+char * SearchSymbol(const char *address, long long int *offset);
 void ObjectFileClose(void);
 
 
