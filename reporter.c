@@ -13,6 +13,7 @@
 #include <signal.h> // sigaction
 #include <stdlib.h> // exit
 #include <ucontext.h> // mcontext
+#include <stdint.h>
 #include "symbols.h"
 
 static void SignalReceived(int signum, siginfo_t * siginfo, void *context)
@@ -27,16 +28,24 @@ static void SignalReceived(int signum, siginfo_t * siginfo, void *context)
     void *rbp = (void *)((struct ucontext *)context)->uc_mcontext.gregs[rbp_index];
     // this starter code only prints the symbol addr
     // should eventually print [%p] %s (+0x%x) with addr, name, offset arguments
-
-    char buf[256] = {0x0};
-    sprintf(buf, "0x%llx", (long long int)rip);
+    char ret_addr[9] = {0x0};
+    sprintf(ret_addr, "0x%llx", (long long int)rip);
     long long int offset;
-    char* symbol = (char*)SearchSymbol(buf, &offset);
-    printf("Faulting instruction at [%p] %s (+0x%x)\n", rip, symbol, offset);
-    memset(buf, 0x00, 256);
-    sprintf(buf, "0x%llx", (long long int) *((int64_t*)rbp+1));
-    printf("buf [%s]\n", buf);
-    SearchSymbol(buf, &offset);
+    char* symbol = (char*)SearchSymbol(ret_addr, &offset);
+    printf("Faulting instruction at [%018lx] %s (+0x%llx)\n", (uint64_t)rip, symbol, offset);
+    do{
+      memset(ret_addr, 0x00, 9);
+      sprintf(ret_addr, "0x%llx", (long long int) *((uint64_t*)rbp+1));
+      //printf("ret_addr [%s]\n", ret_addr);
+      symbol = SearchSymbol(ret_addr, &offset);
+      if(symbol == NULL)
+      {
+        printf("[%018lx] %s (+0x%llx)\n", (uint64_t)*((uint64_t*)rbp+1), "Unknown", (long long unsigned int)0);
+        break;
+      }
+      printf("[%018lx] %s (+0x%llx)\n", (uint64_t)*((uint64_t*)rbp+1), symbol, offset);
+      rbp = (void*)*((uint64_t*)rbp);
+    } while( symbol == NULL || strcmp(symbol, "main") != 0);
 
     exit(0);  // terminate process
 }

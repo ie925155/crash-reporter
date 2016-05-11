@@ -16,25 +16,25 @@ void MakeMemoryError(int which)
 {
     int *ptr;
     char *str, stackarr[4];
-    
+
     switch (which) {
-      
+
         case 1:
             *ptr = 123; // error #1: dereference uninitialized ptr
             break;
 
-        case 2 : 
+        case 2 :
             str = malloc(8); // error #2: allocation doesn't include space for null char
             strcpy(str, "too long");
             free(str);
             break;
-                 
+
        case 3:
             strncpy(stackarr, "cs", 2);
             printf("%s", stackarr); // error #3: reads past end of string (missing null terminator)
             break;
-      
-        case 4: 
+
+        case 4:
             stackarr[11] = 'Y'; // error #4: out of bounds on stack array
             break;
 
@@ -43,7 +43,7 @@ void MakeMemoryError(int which)
             free(str);
             *str = 'A'; // error #5: write to freed memory
             break;
-  
+
         case 6:
             str = malloc(4);
             free(str);
@@ -65,7 +65,7 @@ int main(int argc, const char *argv[])
         printf("Usage: %s <num>\n", argv[0]);
         printf("<num> is a value from 1 to 7 identifying which error to execute.\n");
         exit(1);
-    } 
+    }
     MakeMemoryError(atoi(argv[1]));
     return 0;
 }

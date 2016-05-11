@@ -246,8 +246,8 @@ char * SearchSymbol(const char *address, long long int *offset)
   }
   SYMBOL_INFO *symbol_info = (SYMBOL_INFO*) CVectorNth(g_vector_symtab, position);
   *offset = addr-symbol_info->address;
-  printf("address %s matches %s+%02lx\n", address, *(const char **)
-    symbol_info->name, addr-symbol_info->address);
+  /*printf("address %s matches %s+%02lx\n", address, *(const char **)
+    symbol_info->name, addr-symbol_info->address);*/
   return *(const char **) symbol_info->name;
 }
 
